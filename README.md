@@ -15,6 +15,11 @@ Open `Android_app` in Android Studio ->  Gradle Sync -> Gradle Build -> run on c
 
 # **Construction activity monitoring using QIDK**
 
+### IMPORTANT INFO!!!! 
+download the service-key json file from https://drive.google.com/file/d/1Hhjo1bBbHsMIEN3R7uFY1x3eTv2kYv2_/view?usp=sharing
+
+and replace this in the dashboard folder. Also update app.py to include the path of the new json.
+
 ## Project Overview:
 
 The Construction Site Monitoring project uses computer vision and machine learning to improve safety on construction sites by tracking safety gear, workers, and machines. It provides real-time detection, checks for safety rule violations, sends alerts, and offers data analysis through bar graphs, scatter plots, and overtime reports. The project reduces the need for supervision, improves reporting, and allows for quick action when needed. It detects hardhats, safety vests and personnel.
