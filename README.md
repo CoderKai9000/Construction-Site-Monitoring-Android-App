@@ -13,12 +13,13 @@ python app.py {OR} python3 app.py
 ### Android App
 Open `Android_app` in Android Studio ->  Gradle Sync -> Gradle Build -> run on connected device.
 
-# **Construction activity monitoring using QIDK**
 
 ### IMPORTANT INFO!!!! 
 download the service-key json file from https://drive.google.com/file/d/1Hhjo1bBbHsMIEN3R7uFY1x3eTv2kYv2_/view?usp=sharing
 
 and replace this in the dashboard folder. Also update app.py to include the path of the new json.
+
+# **Construction activity monitoring using QIDK**
 
 ## Project Overview:
 
