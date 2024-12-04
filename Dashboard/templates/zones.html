@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Zones</title>
+    <style>
+        :root {
+            --background-color: #f4f6f9;
+            --header-color: #2c3e50;
+            --text-color: #2c3e50;
+            --card-background: #ffffff;
+            --accent-color: #1abc9c;
+            --footer-color: #34495e;
+            --toggle-bg: #ccc;
+            --toggle-knob: #fff;
+        }
+
+        body {
+            font-family: 'Roboto', sans-serif;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .navbar {
+            background-color: var(--header-color);
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .navbar a {
+            color: #ffffff;
+            text-decoration: none;
+            padding: 10px 20px;
+            margin: 0 10px;
+            border-radius: 4px;
+            transition: background-color 0.3s, color 0.3s;
+        }
+
+        .navbar a:hover {
+            background-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        .navbar a.active {
+            background-color: var(--accent-color);
+            color: #ffffff;
+        }
+
+        h1 {
+            text-align: center;
+            margin: 2rem 0;
+            color: var(--text-color);
+        }
+
+        #image-container {
+            position: relative;
+            margin: 2rem auto;
+            max-width: 1200px;
+            padding: 0 1rem;
+        }
+
+        .zone {
+            position: absolute;
+            border: 2px solid red;
+            background-color: rgba(255, 0, 0, 0.3);
+            cursor: move;
+        }
+
+        #image {
+            user-select: none;
+            -webkit-user-drag: none;
+            width: 100%;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        button {
+            display: block;
+            margin: 2rem auto;
+            padding: 0.8rem 1.5rem;
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+
+        button:hover {
+            background-color: #16a085;
+            transform: translateY(-2px);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <a href="/home">Home</a>
+        <a href="/work_assign.html" class="active">Zone Marking</a>
+    </div>
+    <h1>Mark Zones on the Image</h1>
+    <div id="image-container">
+        <img id="image" src="{{ 'static/images/11.jpeg' }}" alt="Image">
+    </div>
+    <div>
+        <button onclick="saveZones()">Save Zones</button>
+        <button onclick="resetZones()">Reset Zones</button>
+    </div>
+    <script>
+        let zones = [];
+        let currentZone = null;
+        let startX, startY;
+
+        document.getElementById('image').addEventListener('mousedown', function (event) {
+            event.preventDefault(); // Prevent default behavior
+            const rect = event.target.getBoundingClientRect();
+            startX = event.clientX - rect.left;
+            startY = event.clientY - rect.top;
+
+            currentZone = document.createElement('div');
+            currentZone.className = 'zone';
+            currentZone.style.left = `${startX}px`;
+            currentZone.style.top = `${startY}px`;
+            document.getElementById('image-container').appendChild(currentZone);
+
+            document.addEventListener('mousemove', onMouseMove);
+            document.addEventListener('mouseup', onMouseUp);
+        });
+
+        function onMouseMove(event) {
+            const rect = document.getElementById('image').getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+
+            const width = x - startX;
+            const height = y - startY;
+
+            currentZone.style.width = `${width}px`;
+            currentZone.style.height = `${height}px`;
+        }
+
+        function onMouseUp(event) {
+            document.removeEventListener('mousemove', onMouseMove);
+            document.removeEventListener('mouseup', onMouseUp);
+
+            const width = parseInt(currentZone.style.width);
+            const height = parseInt(currentZone.style.height);
+
+            if (width > 0 && height > 0) {
+                const zoneName = prompt('Enter zone name:');
+                if (zoneName && zoneName.trim()) {
+                    zones.push({
+                        name: zoneName.trim(),
+                        x: startX,
+                        y: startY,
+                        width: width,
+                        height: height
+                    });
+                    console.log("Zone added:", zones[zones.length - 1]);
+                } else {
+                    currentZone.remove();
+                }
+            } else {
+                currentZone.remove();
+            }
+            currentZone = null;
+        }
+
+        function saveZones() {
+            console.log("Saving zones:", zones);
+
+            fetch('/add_zone', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(zones)
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Zones saved!');
+                    } else {
+                        alert('Failed to save zones: ' + (data.error || 'Unknown error'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error saving zones: ' + error.message);
+                });
+        }
+
+        function loadZones() {
+            fetch('/get_zones')
+                .then(response => response.json())
+                .then(data => {
+                    zones = data;
+                    zones.forEach(zone => {
+                        const zoneDiv = document.createElement('div');
+                        zoneDiv.className = 'zone';
+                        zoneDiv.style.left = `${zone.x}px`;
+                        zoneDiv.style.top = `${zone.y}px`;
+                        
+                        zoneDiv.style.width = `${zone.width}px`;
+                        zoneDiv.style.height = `${zone.height}px`;
+                        document.getElementById('image-container').appendChild(zoneDiv);
+                    });
+                });
+        }
+
+        window.onload = loadZones;
+
+        async function resetZones() {
+            try {
+                // Call backend endpoint to reset zones.json
+                const response = await fetch('/reset_zones', {
+                    method: 'POST',
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to reset zones');
+                }
+
+                // Clear UI
+                const zoneElements = document.querySelectorAll('.zone');
+                zoneElements.forEach(el => el.remove());
+
+                // Reset tracking variables
+                zones = [];
+                currentZone = null;
+            } catch (error) {
+                console.error('Error resetting zones:', error);
+                alert('Failed to reset zones');
+            }
+        }
+    </script>
+
+</body>
+
+</html>

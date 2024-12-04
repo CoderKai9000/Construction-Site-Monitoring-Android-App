@@ -1,0 +1,583 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Object Detection Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --background-color: #f4f6f9;
+            --header-color: #2c3e50;
+            --text-color: #2c3e50;
+            --card-background: #ffffff;
+            --accent-color: #1abc9c;
+            --footer-color: #34495e;
+            --chart-bg: rgba(26, 188, 156, 0.5);
+            --chart-border: rgba(26, 188, 156, 1);
+            --chart-grid: #ecf0f1;
+        }
+
+        body.dark-mode {
+            --background-color: #2c3e50;
+            --header-color: #ecf0f1;
+            --text-color: #ecf0f1;
+            --card-background: #34495e;
+            --chart-grid: #7f8c8d;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            transition: all 0.3s ease;
+        }
+
+        .navbar {
+            background-color: var(--header-color);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .navbar a {
+            color: white;
+            text-decoration: none;
+            margin-right: 20px;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .chart-container {
+            background-color: var(--card-background);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h1,
+        h2 {
+            color: var(--header-color);
+            margin-bottom: 20px;
+        }
+
+        #refresh-button {
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        #refresh-button:hover {
+            opacity: 0.9;
+        }
+
+        .rectangle {
+            width: 200px;
+            height: 100px;
+            background-color: (255, 0, 0, 0.3);
+            position: absolute;
+        }
+
+        #inside {
+            position: relative;
+            z-index: 1000;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="navbar">
+        <div>
+            <a href="/">Dashboard</a>
+            <a href="/work_assign.html">Zone Marking</a>
+            <a href="/log.html">Log</a>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()">🌓</button>
+    </div>
+
+    <div class="container">
+        <h1>Object Detection Dashboard</h1>
+        <button id="refresh-button" onclick="refreshData()">Refresh Data</button>
+
+        <div class="chart-container">
+            <h2>Object Distribution</h2>
+            <canvas id="barChart"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <h2>Safety Compliance Results</h2>
+            <div>
+                <p>Following Safety Guidelines: <span id="following">0</span></p>
+                <p>Non-Following Safety Guidelines: <span id="nonFollowing">0</span></p>
+                <p>Total Persons: <span id="personcount">0</span></p>
+                <button class="btn" onclick="checkCompliance()">Check Compliance</button>
+            </div>
+        </div>
+
+        <script>
+            const toggle = document.getElementById('themeToggle');
+            const body1 = document.body;
+            const toggleLabel = document.getElementById('toggleLabel');
+
+            // Check for saved user preference, if any, on load of the website
+            window.onload = () => {
+                const darkMode = localStorage.getItem('darkMode');
+                if (darkMode === 'enabled') {
+                    body1.classList.add('dark-mode');
+                    toggle.checked = true;
+                    toggleLabel.textContent = 'Light Mode';
+                } else {
+                    toggleLabel.textContent = 'Dark Mode';
+                }
+            };
+
+            toggle.addEventListener('change', () => {
+                if (toggle.checked) {
+                    body1.classList.add('dark-mode');
+                    toggleLabel.textContent = 'Light Mode';
+                    localStorage.setItem('darkMode', 'enabled');
+                } else {
+                    body1.classList.remove('dark-mode');
+                    toggleLabel.textContent = 'Dark Mode';
+                    localStorage.setItem('darkMode', 'disabled');
+                }
+            });
+
+            async function fetchComplianceData() {
+                const response = await fetch('/compliance_data'); // Fetch the data from the server
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                const data = await response.json(); // Parse the JSON response
+                return data.detections; // Extract and return the 'detections' array
+            }
+
+            async function checkCompliance() {
+                try {
+                    const Data = await fetchComplianceData();
+                    console.log(Data);
+                    console.log("entered");
+
+                    let following = 0;
+                    let nonFollowing = 0;
+                    let personcount = 0;
+                    let hatcnt = 0;
+                    let nohatcnt = 0;
+                    let vestcnt = 0;
+                    let novestcnt = 0;
+                    console.log(Data)
+                    // Function to check if two bounding boxes intersect
+                    function isIntersecting(box1, box2) {
+                        // console.log(box1 , box2);
+                        return !(
+                            box1.x2 <= box2.x1 || // box1 is to the left of box2
+                            box1.x1 >= box2.x2 || // box1 is to the right of box2
+                            box1.y2 <= box2.y1 || // box1 is below box2
+                            box1.y1 >= box2.y2    // box1 is above box2
+                        );
+                    }
+
+
+                    // Count individual labels
+                    Data.forEach(entry => {
+                        if (entry.label === "Hardhat") {
+                            hatcnt++;
+                        } else if (entry.label === "Safety Vest") {
+                            vestcnt++;
+                        } else if (entry.label === "NO-Hardhat") {
+                            nohatcnt++;
+                        } else if (entry.label === "NO-Safety Vest") {
+                            novestcnt++;
+                        }
+                    });
+
+                    // Evaluate compliance for each detected person
+                    Data.forEach(person => {
+                        if (person.label === "Person") {
+                            personcount++;
+                            let hasHardhat = false;
+                            let hasVest = false;
+                            let noHardhat = false;
+                            let noVest = false;
+
+                            Data.forEach(item => {
+                                if (item.label === "Hardhat" && isIntersecting(person.boundingBox, item.boundingBox)) {
+                                    hasHardhat = true;
+                                }
+                                if (item.label === "Safety Vest" && isIntersecting(person.boundingBox, item.boundingBox)) {
+                                    hasVest = true;
+                                }
+                                if (item.label === "NO-Hardhat" && isIntersecting(person.boundingBox, item.boundingBox)) {
+                                    noHardhat = true;
+                                }
+                                if (item.label === "NO-Safety Vest" && isIntersecting(person.boundingBox, item.boundingBox)) {
+                                    noVest = true;
+                                }
+                            });
+
+                            if (hasHardhat && hasVest) {
+                                following++;
+                            } else if (noHardhat || noVest) {
+                                nonFollowing++;
+                            }
+                            console.log(hasHardhat && hasVest);
+                        }
+                    });
+
+                    // Adjust person count based on detected equipment
+                    // if (personcount < hatcnt + nohatcnt) {
+                    //     personcount = hatcnt + nohatcnt;
+                    // }
+                    // if (personcount < vestcnt + novestcnt) {
+                    //     personcount = vestcnt + novestcnt;
+                    // }
+
+                    console.log("yes");
+
+                    // Update the DOM with compliance statistics
+                    document.getElementById("following").textContent = following;
+                    document.getElementById("nonFollowing").textContent = nonFollowing;
+                    document.getElementById("personcount").textContent = personcount;
+
+                    const payload = {
+                        param1: nonFollowing,
+                        param2: personcount
+                    };
+
+                    try {
+                        const response = await fetch('/send_email', {
+                            method: 'POST', // Specify the HTTP method
+                            headers: {
+                                'Content-Type': 'application/json', // Send JSON data
+                            },
+                            body: JSON.stringify(payload), // Convert payload to JSON
+                        });
+
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+
+                        const result = await response.json(); // Parse the JSON response
+
+                        if (result.success === "success") {
+                            console.log("Success:", result.success);
+                        } else {
+                            console.error("Error:", result.success);
+                        }
+
+                    } catch (error) {
+                        console.error('Error calling Python route:', error);
+                    }
+                } catch (error) {
+                    console.error("Error fetching compliance data:", error);
+                }
+                const result = await response.json(); // Parse the JSON response
+
+                if (result.status === "success") {
+                    console.log("Success")
+                } else {
+                    console.error("Error:", result.message);
+                }
+            }
+
+        </script>
+
+        <!-- <div class="chart-container">
+            <h2>Object Locations</h2>
+            <canvas id="scatterChart"></canvas>
+        </div> -->
+
+        <div class="chart-container">
+            <h2>Person Movement Path</h2>
+            <div id='inside'></div>
+            <canvas id="personPathChart"></canvas>
+        </div>
+
+    </div>
+
+    <script>
+        const body = document.body;
+        let barChartInstance, scatterChartInstance, personPathChartInstance;
+
+        function toggleTheme() {
+            body.classList.toggle('dark-mode');
+            updateCharts();
+        }
+
+        async function fetchBarData() {
+            const response = await fetch('/api/object_detections');
+            return await response.json();
+        }
+
+        // async function fetchScatterData() {
+        //     const response = await fetch('/api/scatter_data');
+        //     return await response.json();
+        // }
+        async function fetchZonesData() {
+            const response = await fetch('/api/zones');
+            return await response.json();
+        }
+
+        async function fetchPersonCenterData() {
+            const response = await fetch('/api/person_centers');
+            return await response.json();
+        }
+
+        async function renderBarChart() {
+            const data = await fetchBarData();
+            const ctx = document.getElementById('barChart').getContext('2d');
+
+            if (barChartInstance) {
+                barChartInstance.destroy();
+            }
+
+            barChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: '# of Objects',
+                        data: data.counts,
+                        backgroundColor: 'var(--chart-bg)',
+                        borderColor: 'var(--chart-border)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'var(--text-color)'
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'var(--chart-grid)'
+                            },
+                            ticks: {
+                                color: 'var(--text-color)'
+                            }
+                        },
+                        x: {
+                            grid: {
+                                color: 'var(--chart-grid)'
+                            },
+                            ticks: {
+                                color: 'var(--text-color)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // async function renderScatterChart() {
+        //     const data = await fetchScatterData();
+        //     const ctx = document.getElementById('scatterChart').getContext('2d');
+
+        //     if (scatterChartInstance) {
+        //         scatterChartInstance.destroy();
+        //     }
+
+        //     scatterChartInstance = new Chart(ctx, {
+        //         type: 'scatter',
+        //         data: {
+        //             datasets: [{
+        //                 label: 'Object Locations',
+        //                 data: data.points,
+        //                 backgroundColor: 'var(--chart-bg)',
+        //                 borderColor: 'var(--chart-border)',
+        //                 pointRadius: 6
+        //             }]
+        //         },
+        //         options: {
+        //             responsive: true,
+        //             plugins: {
+        //                 legend: {
+        //                     labels: {
+        //                         color: 'var(--text-color)'
+        //                     }
+        //                 },
+        //                 tooltip: {
+        //                     callbacks: {
+        //                         label: function(context) {
+        //                             const point = context.raw;
+        //                             return `Label: ${point.label}, (${point.x}, ${point.y})`;
+        //                         }
+        //                     }
+        //                 }
+        //             },
+        //             scales: {
+        //                 x: {
+        //                     grid: {
+        //                         color: 'var(--chart-grid)'
+        //                     },
+        //                     ticks: {
+        //                         color: 'var(--text-color)'
+        //                     }
+        //                 },
+        //                 y: {
+        //                     grid: {
+        //                         color: 'var(--chart-grid)'
+        //                     },
+        //                     ticks: {
+        //                         color: 'var(--text-color)'
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     });
+        // }
+
+
+        async function renderPersonPathChart() {
+            const data = await fetchPersonCenterData();
+            const zones = await fetchZonesData();
+
+            const chartElement = document.getElementById('personPathChart');
+
+            // Set the canvas drawing dimensions to match CSS
+            const chartWidth = chartElement.width;
+            const chartHeight = chartElement.height;
+
+            console.log("Canvas Width:", chartWidth);
+            console.log("Canvas Height:", chartHeight);
+
+            // Clear previous rectangles
+            document.getElementById('inside').innerHTML = '';
+
+            for (let i = 0; i < zones.length; i++) {
+                const left = (zones[i].x / 1280) * chartWidth;
+                const top = (zones[i].y / 960) * chartHeight;
+                const width = (zones[i].width / 1280) * chartWidth;
+                const height = (zones[i].height / 960) * chartHeight;
+                const zone_name = zones[i].name;
+                console.log("Zone name:", zones[i].name);
+                document.getElementById('inside').innerHTML += `
+                        <div class="rectangle" style="position: absolute; left: ${left * 4}px; top: ${top * 4}px; width: ${width * 4}px; height: ${height * 4}px; background-color: rgba(255, 0, 0, 0.3); z-index: 900;"></div>`;
+                document.getElementById('inside').innerHTML += `
+                        <div class="rectangle" style="position: absolute; left: ${left * 4}px; top: ${top * 4}px; width: 50px; height: 23px; background-color: rgba(0, 0, 255, 0.3); z-index: 900;">${zone_name}</div>`;
+            }
+
+            const ctx = chartElement.getContext('2d');
+            if (personPathChartInstance) {
+                personPathChartInstance.destroy();
+            }
+
+            const threshold = 50; // Define your threshold here
+            const filteredPoints = [];
+            for (let i = 0; i < data.points.length - 1; i++) {
+                const point1 = data.points[i];
+                for (let j = i + 1; j < data.points.length; j++) {
+                    const point2 = data.points[j];
+                    const distance = Math.sqrt(Math.pow(point2.x - point1.x, 2) + Math.pow(point2.y - point1.y, 2));
+                    if (distance <= threshold) {
+                        filteredPoints.push(point1);
+                        filteredPoints.push(point2);
+                    }
+                }
+            }
+
+            personPathChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Clustering Plot',
+                        data: filteredPoints,
+                        borderColor: 'var(--chart-border)',
+                        backgroundColor: 'var(--chart-bg)',
+                        fill: false,
+                        tension: 0 // Set tension to 0 for straight lines
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'var(--text-color)'
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            grid: {
+                                color: 'var(--chart-grid)'
+                            },
+                            ticks: {
+                                color: 'var(--text-color)'
+                            }
+                        },
+                        y: {
+                            grid: {
+                                color: 'var(--chart-grid)'
+                            },
+                            ticks: {
+                                color: 'var(--text-color)'
+                            }
+                        }
+                    }
+                },
+            });
+        }
+
+
+
+
+
+        function updateCharts() {
+            const isDark = body.classList.contains('dark-mode');
+            const gridColor = isDark ? '#7f8c8d' : '#ecf0f1';
+
+            barChartInstance.options.scales.y.grid.color = gridColor;
+            barChartInstance.update();
+
+            // scatterChartInstance.options.scales.x.grid.color = gridColor;
+            // scatterChartInstance.options.scales.y.grid.color = gridColor;  1280x960
+            // scatterChartInstance.update();
+
+            personPathChartInstance.options.scales.x.grid.color = gridColor;
+            personPathChartInstance.options.scales.y.grid.color = gridColor;
+            personPathChartInstance.update();
+        }
+
+        async function refreshData() {
+            await renderBarChart();
+            // await renderScatterChart();
+            await renderPersonPathChart();
+        }
+
+        // Initialize Charts
+        renderBarChart();
+        // renderScatterChart();
+        renderPersonPathChart();
+    </script>
+</body>
+
+</html>

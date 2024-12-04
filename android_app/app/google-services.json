@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "582588509245",
+    "firebase_url": "https://csite-assistant-default-rtdb.firebaseio.com",
+    "project_id": "csite-assistant",
+    "storage_bucket": "csite-assistant.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582588509245:android:cd7db360490231e868ce54",
+        "android_client_info": {
+          "package_name": "com.surendramaran.yolov8tflite"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUuNVaqma9A9jJFnTVtZVPr_j03f85NEM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:582588509245:android:af734cd0527da5b568ce54",
+        "android_client_info": {
+          "package_name": "org.tensorflow.lite.examples.objectdetection"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAUuNVaqma9A9jJFnTVtZVPr_j03f85NEM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
